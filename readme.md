@@ -1,15 +1,11 @@
-#################################################
-#                 HUE AUTO OFF                  
-                                               
-             version 1.2.0, 05/2023            
-                                               
-#################################################
-
+# HUE AUTO OFF                  
+version 1.2.0, 05/2023            
+                                             
 # Changelog:
- 05/2023 v. 1.2.0
- Added ability to turn lights back on when reconnecting
+- 05/2023 v. 1.2.0
+* Added ability to turn lights back on when reconnecting
 
-# ----------------------------------------------------------------------------------
+# -----------------
 
  Bash script for automatically turning off the lights when all predifined 
  IP-addresses have left WiFi on ASUSWRT Merlin
