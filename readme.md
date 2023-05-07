@@ -3,14 +3,14 @@ version 1.2.0, 05/2023
                                              
 # Changelog:
 - 05/2023 v. 1.2.0
-* Added ability to turn lights back on when reconnecting
+Added ability to turn lights back on when reconnecting
 
-# -----------------
+-----------------
 
  Bash script for automatically turning off the lights when all predifined 
  IP-addresses have left WiFi on ASUSWRT Merlin
 
- # Prerequisites: 
+# Prerequisites: 
  - jq
  - curl
  - bash
@@ -23,20 +23,20 @@ version 1.2.0, 05/2023
  Make sure you don't use a randomised MAC address on your device when connecting
  to your WiFi network.
 
- # INSTALLATION: 
+# INSTALLATION: 
  Make script executable (chmod +x ./hueoff) and run "hueoff install" from CLI
  OR:
  Place this script in /jffs/scripts/
  create this folder: /jffs/scripts//hueoff.d/logs
  add the following lines  to /jffs/scripts/post-mount:
- /jffs/scripts/hueoff &> /jffs/scripts/hueoff.d/logs/log.txt &
+        /jffs/scripts/hueoff &> /jffs/scripts/hueoff.d/logs/log.txt &
 
  To see the log run "cat /jffs/scripts/hueoff.d/logs/log.txt"
 
-########################################################################################
+# Credits:
 
  Hue control functions were adapted from Harald van der Laan's Philips Hue
  Bash script: https://github.com/hvanderlaan/philips-hue
- ---------------------------------------------------------------------------------------
+ 
  kallefornia 2023
  https://github.com/duckwilliam/hueoff
