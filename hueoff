@@ -41,20 +41,12 @@
 # https://github.com/duckwilliam/hueautooff
 
 ### User Variables: REPLACE THESE VARIABLES BEFORE RUNNING
-hueBridge='192.168.1.162' # Enter the IP address of your Philips Hue Bridge
+hueBridge='000.000.000.000' # Enter the IP address of your Philips Hue Bridge
 huePort='80' # Don't change unless you know what you're doing
-hueApiHash='BojwEitzypKM4XP-BFNC3dtlukO-W8lmI-a1qMdh' # Enter your Hue API hash (s.a.)
+hueApiHash='XXXXXXXXXXXX' # Enter your Hue API hash (see above)
 hueBaseUrl="http://$hueBridge:$huePort/api/$hueApiHash" # Don't change
 hueTimeOut='5' # Don't change unless you know what you're doing
-user_ip=( 192.168.1.20 192.168.1.38 ) # Enter your IP address(es)
-
-### User Variables: REPLACE THESE VARIABLES BEFORE RUNNING
-hueBridge='192.168.1.162' # Enter the IP address of your Philips Hue Bridge
-huePort='80' # Don't change unless you know what you're doing
-hueApiHash='BojwEitzypKM4XP-BFNC3dtlukO-W8lmI-a1qMdh' # Enter your Hue API hash (s.a.)
-hueBaseUrl="http://$hueBridge:$huePort/api/$hueApiHash" # Don't change
-hueTimeOut='5' # Don't change unless you know what you're doing
-user_ip=( 192.168.1.20 192.168.1.38 ) # Enter your IP address(es)
+user_ip=( 000.000.000.000 000.000.000.000 ) # Enter your IP address(es)
 
 
 # Functions #
