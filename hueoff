@@ -1,0 +1,260 @@
+#!/usr/bin/env bash
+
+#################################################
+#                 HUE AUTO OFF                  #
+#                                               #
+#             version 1.2.0, 05/2023            #
+#                                               #
+#################################################
+
+# 05/2023 v. 1.2.0
+# Added ability to turn lights back on when reconnecting
+
+# ----------------------------------------------------------------------------------
+
+# Bash script for automatically turning off the lights when all predifined 
+# IP-addresses have left WiFi on ASUSWRT Merlin
+
+# Prerequisites: jq, curl, bash, jffs userscripts enabled
+# To find out how to get your Hue API hash see https://developers.meethue.com/
+# For this to work you mast have static DHCP enabled for the IP addresses you want to use
+# To install, replace the variables under # User variables #, 
+# Make sure you don't use a randomised MAC address on your device when connecting
+# to your WiFi network.
+#
+# INSTALLATION: 
+# Make script executable (chmod +x ./hueoff) and run "hueoff install" from CLI
+# OR:
+# Place this script in /jffs/scripts/
+# create this folder: /jffs/scripts//hueoff.d/logs
+# add the following lines  to /jffs/scripts/post-mount:
+# /jffs/scripts/hueoff &> /jffs/scripts/hueoff.d/logs/log.txt &
+
+# To see the log run "cat /jffs/scripts/hueoff.d/logs/log.txt"
+
+########################################################################################
+
+# Hue control functions were adapted from Harald van der Laan's Philips Hue
+# Bash script: https://github.com/hvanderlaan/philips-hue
+# ---------------------------------------------------------------------------------------
+# kallefornia 2023
+# https://github.com/duckwilliam/hueautooff
+
+### User Variables: REPLACE THESE VARIABLES BEFORE RUNNING
+hueBridge='192.168.1.162' # Enter the IP address of your Philips Hue Bridge
+huePort='80' # Don't change unless you know what you're doing
+hueApiHash='BojwEitzypKM4XP-BFNC3dtlukO-W8lmI-a1qMdh' # Enter your Hue API hash (s.a.)
+hueBaseUrl="http://$hueBridge:$huePort/api/$hueApiHash" # Don't change
+hueTimeOut='5' # Don't change unless you know what you're doing
+user_ip=( 192.168.1.20 192.168.1.38 ) # Enter your IP address(es)
+
+### User Variables: REPLACE THESE VARIABLES BEFORE RUNNING
+hueBridge='192.168.1.162' # Enter the IP address of your Philips Hue Bridge
+huePort='80' # Don't change unless you know what you're doing
+hueApiHash='BojwEitzypKM4XP-BFNC3dtlukO-W8lmI-a1qMdh' # Enter your Hue API hash (s.a.)
+hueBaseUrl="http://$hueBridge:$huePort/api/$hueApiHash" # Don't change
+hueTimeOut='5' # Don't change unless you know what you're doing
+user_ip=( 192.168.1.20 192.168.1.38 ) # Enter your IP address(es)
+
+
+# Functions #
+timer(){
+    counter=$((counter+1))
+    echo "waiting $1 seconds"
+    sleep "$1"
+    counter_reset_limit=20
+    if [[ "$counter" -gt $counter_reset_limit ]]; then
+       echo '###### Clear Log ######' > /jffs/scripts/hueoff.d/logs/log.txt
+       counter=0
+    fi
+    export counter
+    reset_in=$(( counter_reset_limit - counter))
+    echo "$1 seconds have elapsed."
+    echo "Logging limit set to $counter_reset_limit iterations."
+    echo "Log will be cleared after $reset_in more iterations."
+    echo "--------------------------"
+    date
+    echo "Resuming..."
+    case $2 in
+        mac_scanner)
+
+            echo "Starting MAC address monitor..."
+            mac_scanner 
+            ;;
+        mainfx)
+            echo "Initiating new scan for IP address(es)..."
+            mainfx
+            ;;
+    esac
+}
+
+# After turning off the lights, scan for changes in amount of connected clients and 
+# decide when to rescan for user IP and reset 
+mac_scanner(){
+    echo "Looking for available WiFi interfaces..."
+    read -a wifi_adapters < <(nvram get wl_ifnames)
+    echo ""
+    echo "Found the following interfaces:"
+    echo "${wifi_adapters[@]}"
+    echo ""
+    echo "Counting currently connected clients..."
+    declare -a mac_count
+    origin=0
+    for wfint in "${wifi_adapters[@]}"; do
+        mapfile -O "$origin" mac_count < <(wl -i "$wfint" assoclist | grep -c assoclist) 
+        origin=$((origin+1))  
+    done
+    echo "${mac_count[@]}"
+    mac_sum=$(IFS=+; echo "$((${mac_count[*]}))")
+    echo "$mac_sum clients currently connected"
+    case $1 in
+        firstrun)
+	        mac_sum_old="$mac_sum"
+            export mac_sum_old
+            timer 30 mac_scanner
+            ;;
+        *)
+            echo "Comparing number of clients now to last run"
+            echo "Currently $mac_sum clients are connected."
+            echo "Before that, $mac_sum_old clients were connected."
+            if (( mac_sum_old != mac_sum )); then
+                echo "The amount of connected clients has changed,"
+	            echo "Checking for user IP address..."
+		        mainfx
+            else
+                echo "No changes in the amount of connected clients detected,"
+                echo "Storing current number of clients in variable..."
+                mac_sum_old=$mac_sum
+                echo "$mac_sum_old saved as variable."
+                export mac_sum_old
+                timer 30 mac_scanner
+            fi
+            ;;
+    esac 
+}
+
+restore_light_state(){
+    declare -A lightstate
+    while IFS=" " read -r light_id light_state; do 
+        lightstate["$light_id"]="$light_state"
+    done < /jffs/scripts/states.txt
+    for i in "${!lightstate[@]}"; do
+        curl --max-time $hueTimeOut --request PUT --data "${lightstate[$i]}" "$hueBaseUrl/lights/$i/state"
+    done
+    rm /jffs/scripts/states.txt
+    echo "Lights turned back on"
+    pwr_off="false"
+    export pwr_off
+}
+
+lights_off(){
+    echo "Looking for available lights on $hueBridge"
+    mapfile -t lights < <(curl -S --max-time $hueTimeOut --silent --request GET $hueBaseUrl/lights | jq -r 'keys[] as $k | "\($k)"')
+    echo ""
+    echo "Found the following lights:"
+    echo "${lights[@]}"
+    echo ""
+    echo "Getting light states and storing in file"
+    declare -A lightstate
+    while IFS=" " read -r light_id light_state; do 
+        lightstate["$light_id"]="$light_state"
+    done < <(for light in "${lights[@]}"; do
+            pwr_state="$(curl --max-time $hueTimeOut --request GET $hueBaseUrl/lights/$light | awk -F'[{,:]' '{print $5}')"
+            echo "$light {\"on\":$pwr_state}"
+            done)
+    for lst in "${!lightstate[@]}"; do
+        echo "$lst ${lightstate[$lst]}" >> /jffs/scripts/states.txt
+    done
+
+    echo "light states saved"
+    echo ""
+    echo "attempting to turn off all lights..."
+    for hueTypeNumber in "${lights[@]}"; do
+        curl --max-time $hueTimeOut --silent --request PUT --data '{"on":false}' "$hueBaseUrl/lights/$hueTypeNumber/state" &> /dev/null
+	done 
+    echo "done, initiating scan for user ip..."
+    pwr_off="true"
+    export pwr_off
+    mac_scanner firstrun
+}
+
+mainfx(){
+    date 
+    echo "Looking for available WiFi interfaces..."
+    read -a wifi_adapters < <(nvram get wl_ifnames)
+    echo ""
+    echo "Found the following interfaces:"
+    echo "${wifi_adapters[@]}"
+    echo ""
+    echo "Looking for MAC addresses of currently connected clients..."
+    for wfint in "${wifi_adapters[@]}"; do
+        readarray -t mac_addresses < <( wl -i "$wfint" assoclist | awk '{print $2}' )
+    done
+    echo ""
+    echo "Found the following MAC addresses:"
+    echo "${mac_addresses[@]}"
+    
+    # get static dhcp list and store ip and corresponding mac addresses in an associative array
+    echo ""
+    echo "Attempting to read static DHCP list and read IP bindings into array..."
+    declare -A dhcp_static
+    while IFS=" " read -r macaddr ipaddr; do 
+	    dhcp_static["$ipaddr"]="$macaddr"
+    done < <( nvram get dhcp_staticlist | awk '{gsub("<","\n");printf"%s",$0}'| tail -n +2 | awk -F'[>]' '{print $1,$2}' )
+    echo ""
+    echo "Found the following DHCP static addresses:"
+    for i in "${!dhcp_static[@]}"; do
+        echo "$i ${dhcp_static[$i]}"
+    done
+
+    # read the user-defined ip addresses from variables
+    echo ""
+    echo "Found the following user IP addresses:"
+    echo "${user_ip[@]}"
+ 
+    # look up corresponding mac address for user-defined ip addresses and check whether they are
+    # currently connected to WiFi network. If they are not, then execute the lights_off function, otherwise
+    # start timer again
+    for uip in "${user_ip[@]}"; do
+        echo "Checking for $uip"
+        echo "Trying to match:"
+        uip_mac="${dhcp_static[$uip]}"
+        echo "$uip_mac"
+        if [[ " ${mac_addresses[*]} " =~ ${dhcp_static["$uip"]} ]]; then
+            case $pwr_off in
+                true)
+                    echo "IP reconnected, turning lights back on..."
+                    restore_light_state
+                    ;;
+                false)
+                    echo "IP matched, rechecking"
+                    ;;
+            esac
+            mac_scanner firstrun
+        else
+            echo "IP(s) not found"
+        fi
+    done
+    echo "Nobody home, turning lights off"
+    lights_off
+}
+
+case $1 in
+    install)
+        cp "${BASH_SOURCE[@]}" /jffs/scripts/
+        chmod +x /jffs/scripts/hueoff
+        mkdir /jffs/scripts/hueoff.d/logs
+        echo '/jffs/scripts/hueoff &> /jffs/scripts/hueoff.d/logs/log.txt &' >> /jffs/scripts/post-mount
+        ;;
+    *)
+        counter=0
+        pwr_off="false"
+        states_file=/jffs/scripts/states.txt
+        if test -f "$states_file"; 
+            then
+                echo "states.txt found, deleting file..."
+                rm "$states_file"
+        fi
+        mainfx
+        ;;
+esac
