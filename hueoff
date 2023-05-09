@@ -31,7 +31,7 @@
 # Place this script in /jffs/scripts/
 # create this folder: /jffs/scripts//hueoff.d/logs
 # add the following lines  to /jffs/scripts/post-mount:
-# /jffs/scripts/hueoff &> /jffs/scripts/hueoff.d/logs/log.txt &
+# /jffs/scripts/hueoff &>> /jffs/scripts/hueoff.d/logs/log.txt &
 
 # To see the log run "cat /jffs/scripts/hueoff.d/logs/log.txt"
 
@@ -57,17 +57,10 @@ timer(){
     sleep "$1"
     lines_sum="$(wc -l < /jffs/scripts/hueoff.d/logs/log.txt)"
     lines_max="500"
-    lines_del=$(( lines_sum - lines_max))
-    if [[ $lines_del -gt 0 ]]; 
-        then
-            sed -i 1,${lines_del}d /jffs/scripts/hueoff.d/logs/log.txt
-            echo "Maximum log length set to $lines_max lines."
-            echo "Current log lenght: $lines_sum lines,"
-            echo "$lines_del lines deleted from log."
-        else
-            echo "Current log lenght: $lines_sum lines,"
-            echo "no lines deleted"
-    fi
+    echo "Current log size: $lines_sum lines."
+    echo "Max log size: $lines_max lines."
+    tail -$lines_max /jffs/scripts/hueoff.d/logs/log.txt > /jffs/scripts/hueoff.d/logs/tmp
+    cat /jffs/scripts/hueoff.d/logs/tmp > /jffs/scripts/hueoff.d/logs/log.txt
     echo "--------------------------"
     date
     echo "Resuming..."
@@ -240,7 +233,7 @@ case $1 in
         cp "${BASH_SOURCE[@]}" /jffs/scripts/
         chmod +x /jffs/scripts/hueoff
         mkdir /jffs/scripts/hueoff.d/logs
-        echo '/jffs/scripts/hueoff &> /jffs/scripts/hueoff.d/logs/log.txt &' >> /jffs/scripts/post-mount
+        echo '/jffs/scripts/hueoff &>> /jffs/scripts/hueoff.d/logs/log.txt &' >> /jffs/scripts/post-mount
         ;;
     *)
         pwr_off="false"
