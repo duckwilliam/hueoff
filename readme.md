@@ -1,9 +1,13 @@
 # HUE AUTO OFF                  
-version 1.2.0, 05/2023            
+version 1.2.1, 05/2023            
                                              
 # Changelog:
 - 05/2023 v. 1.2.0
 Added ability to turn lights back on when reconnecting
+
+- 05/2023 v. 1.2.1
+Changed logging method, so log lenght stays constant at pre-defined lenght (500 lines)
+
 
 # Description
  Bash script for automatically turning off the lights when all predifined 
