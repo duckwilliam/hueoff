@@ -3,15 +3,12 @@
 #################################################
 #                 HUE AUTO OFF                  #
 #                                               #
-#             version 1.2.1, 05/2023            #
+#             version 1.2.0, 05/2023            #
 #                                               #
 #################################################
 
 # 05/2023 v. 1.2.0
 # Added ability to turn lights back on when reconnecting
-
-# 05/2023 v. 1.2.1
-# Changed logging method, so log lenght stays constant at pre-defined lenght (500 lines)
 
 # ----------------------------------------------------------------------------------
 
@@ -51,23 +48,22 @@ hueBaseUrl="http://$hueBridge:$huePort/api/$hueApiHash" # Don't change
 hueTimeOut='5' # Don't change unless you know what you're doing
 user_ip=( 000.000.000.000 000.000.000.000 ) # Enter your IP address(es)
 
+
 # Functions #
 timer(){
+    counter=$((counter+1))
     echo "waiting $1 seconds"
     sleep "$1"
-    lines_sum="$(wc -l < /jffs/scripts/hueoff.d/logs/log.txt)"
-    lines_max="500"
-    lines_del=$(( lines_sum - lines_max))
-    if [[ $lines_del -gt 0 ]]; 
-        then
-            sed -i 1,${lines_del}d /jffs/scripts/hueoff.d/logs/log.txt
-            echo "Maximum log length set to $lines_max lines."
-            echo "Current log lenght: $lines_sum lines,"
-            echo "$lines_del lines deleted from log."
-        else
-            echo "Current log lenght: $lines_sum lines,"
-            echo "no lines deleted"
+    counter_reset_limit=20
+    if [[ "$counter" -gt $counter_reset_limit ]]; then
+       echo '###### Clear Log ######' > /jffs/scripts/hueoff.d/logs/log.txt
+       counter=0
     fi
+    export counter
+    reset_in=$(( counter_reset_limit - counter))
+    echo "$1 seconds have elapsed."
+    echo "Logging limit set to $counter_reset_limit iterations."
+    echo "Log will be cleared after $reset_in more iterations."
     echo "--------------------------"
     date
     echo "Resuming..."
@@ -243,6 +239,7 @@ case $1 in
         echo '/jffs/scripts/hueoff &> /jffs/scripts/hueoff.d/logs/log.txt &' >> /jffs/scripts/post-mount
         ;;
     *)
+        counter=0
         pwr_off="false"
         states_file=/jffs/scripts/states.txt
         if test -f "$states_file"; 
