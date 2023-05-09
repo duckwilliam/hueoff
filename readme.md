@@ -36,7 +36,7 @@ Changed logging method, so log lenght stays constant at pre-defined lenght (500 
 ```
 - To see the log run:
  ```
- cat /jffs/scripts/hueoff.d/logs/log.txt"
+ cat /jffs/scripts/hueoff.d/logs/log.txt
 ```
 
 # Credits:
